@@ -13,10 +13,10 @@ function mapDocToShipment(docId: string, data: any): Shipment {
 
   return {
     id: docId,
-    sender: data.senderName || "",
+    sender: data.senderName || data.sender || "",
     senderCity: data.senderCity || "",
     senderPhone: data.senderPhone || "",
-    receiver: data.receiverName || "",
+    receiver: data.receiverName || data.receiver || "",
     receiverCity: data.receiverCity || "",
     receiverPhone: data.receiverPhone || "",
     weight: Number(data.weight) || 0,
