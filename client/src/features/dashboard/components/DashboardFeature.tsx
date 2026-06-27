@@ -196,6 +196,7 @@ function DashboardContent() {
       }).length;
 
       const delivered = shipments.filter(s => {
+        if (!s.updatedAt) return false;
         const updatedDate = new Date(s.updatedAt);
         return s.status === "Delivered" && updatedDate >= d && updatedDate < nextDay;
       }).length;
