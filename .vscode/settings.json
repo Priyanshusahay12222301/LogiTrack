@@ -1,0 +1,12 @@
+{
+  "material-icon-theme.files.associations": {
+    "*.service.ts": "typescript"
+  },
+  "vsicons.associations.files": [
+    {
+      "icon": "typescript",
+      "extensions": ["service.ts"],
+      "format": "svg"
+    }
+  ]
+}

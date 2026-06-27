@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.env.local
+.env
+.firebase/
+firebase-debug.log
+.DS_Store
+
+client/.next/
+client/node_modules/
+client/out/
+server/functions/node_modules/

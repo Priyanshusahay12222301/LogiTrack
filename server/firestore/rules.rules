@@ -1,0 +1,20 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Check if the user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Shipments security rules
+    match /shipments/{shipmentId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // Activities security rules
+    match /activities/{activityId} {
+      allow read, write: if isAuthenticated();
+    }
+  }
+}
