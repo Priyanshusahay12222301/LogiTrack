@@ -49,7 +49,8 @@ import { ActivityFeed } from "@/features/activity/components/ActivityFeed";
 import { StatsSkeleton, ChartsSkeleton, TableSkeleton } from "@/shared/common/Loader";
 import { Status, SortKey } from "@/features/shipments/types";
 import { exportCSV } from "@/lib/export";
-
+import { auth } from "@/lib/firebase/firebase";
+import { updateProfile } from "firebase/auth";
 const STATUS_LIST: Status[] = ["Pending", "In Transit", "Delivered", "Delayed"];
 const STATUS_COLOR: Record<Status, string> = {
   Pending: "#F59E0B",
@@ -116,8 +117,14 @@ function etaMs(s: any) {
 
 function DashboardContent() {
   const searchParams = useSearchParams();
-  const activeTab = searchParams.get("tab") || "dashboard";
+  const defaultTab = searchParams.get("tab") || "dashboard";
 
+  const [activeTab, setActiveTab] = useState(defaultTab);
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<Status | "All">("All");
+  const [sortKey, setSortKey] = useState<SortKey>("eta");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [page, setPage] = useState(1);
   const {
     shipments,
     activities,
@@ -127,13 +134,48 @@ function DashboardContent() {
     setEditStatusShip,
     setDeleteTarget,
   } = useShipmentContext();
+  const user = auth.currentUser;
 
-  // Search & Filter state (used for shipments tab)
-  const [query, setQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"All" | Status>("All");
-  const [sortKey, setSortKey] = useState<SortKey>(null);
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
-  const [page, setPage] = useState(1);
+  const [notifications, setNotifications] = useState({
+    statusChanges: true,
+    newShipment: true,
+    delays: false,
+  });
+
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [profileForm, setProfileForm] = useState({
+    displayName: "",
+    role: "Lead Dispatcher",
+    hub: "Mumbai Central Hub",
+  });
+
+  useEffect(() => {
+    if (user) {
+      setProfileForm({
+        displayName: user.displayName || "",
+        role: localStorage.getItem("dispatcherRole") || "Lead Dispatcher",
+        hub: localStorage.getItem("dispatcherHub") || "Mumbai Central Hub",
+      });
+    }
+  }, [user]);
+
+  const saveProfile = async () => {
+    try {
+      setSavingProfile(true);
+      if (user) {
+        await updateProfile(user, { displayName: profileForm.displayName });
+      }
+      localStorage.setItem("dispatcherRole", profileForm.role);
+      localStorage.setItem("dispatcherHub", profileForm.hub);
+      toast.success("Profile updated successfully!");
+      setIsEditingProfile(false);
+    } catch (err) {
+      toast.error("Failed to update profile");
+    } finally {
+      setSavingProfile(false);
+    }
+  };
 
   // Reset page on search filters change
   useEffect(() => {
@@ -544,29 +586,69 @@ function DashboardContent() {
       {activeTab === "settings" && (
         <div className="max-w-[680px] flex flex-col gap-5">
           <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-            <div className="px-5 py-4 border-b border-gray-200">
+            <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
               <h2 className="text-sm font-semibold text-gray-900">Dispatcher Profile</h2>
+              <button 
+                onClick={() => isEditingProfile ? saveProfile() : setIsEditingProfile(true)}
+                disabled={savingProfile}
+                className="text-sm font-medium text-blue-600 hover:text-blue-700 disabled:opacity-50 transition-colors cursor-pointer"
+              >
+                {savingProfile ? "Saving..." : isEditingProfile ? "Save" : "Edit Profile"}
+              </button>
             </div>
             <div className="p-5 flex flex-col gap-4">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-sm shrink-0">
-                  DS
+                  {(user?.displayName || user?.email || "DS").substring(0, 2).toUpperCase()}
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-gray-900">Active Dispatcher</p>
-                  <p className="text-xs text-gray-500">Mumbai Central Logistics Hub</p>
+                  <p className="text-sm font-semibold text-gray-900">{user?.displayName || "Active Dispatcher"}</p>
+                  <p className="text-xs text-gray-500">{user?.email || "No email available"}</p>
                 </div>
               </div>
-              {[
-                ["Full Name", "Dev Singh"],
-                ["Role", "Lead Dispatcher"],
-                ["Hub Location", "Mumbai Central Hub"],
-              ].map(([l, v]) => (
-                <div key={l} className="flex items-center justify-between py-2.5 border-t border-gray-100">
-                  <span className="text-xs font-medium text-gray-500 w-28">{l}</span>
-                  <span className="text-sm text-gray-900 flex-1">{v}</span>
-                </div>
-              ))}
+              {isEditingProfile ? (
+                <>
+                  <div className="flex flex-col gap-1 py-2.5 border-t border-gray-100">
+                    <span className="text-xs font-medium text-gray-500">Full Name</span>
+                    <input
+                      type="text"
+                      className="text-sm text-gray-900 border border-gray-300 rounded-md px-3 py-1.5 focus:outline-none focus:border-blue-500"
+                      value={profileForm.displayName}
+                      onChange={(e) => setProfileForm(f => ({ ...f, displayName: e.target.value }))}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1 py-2.5 border-t border-gray-100">
+                    <span className="text-xs font-medium text-gray-500">Role</span>
+                    <input
+                      type="text"
+                      className="text-sm text-gray-900 border border-gray-300 rounded-md px-3 py-1.5 focus:outline-none focus:border-blue-500"
+                      value={profileForm.role}
+                      onChange={(e) => setProfileForm(f => ({ ...f, role: e.target.value }))}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1 py-2.5 border-t border-gray-100">
+                    <span className="text-xs font-medium text-gray-500">Hub Location</span>
+                    <input
+                      type="text"
+                      className="text-sm text-gray-900 border border-gray-300 rounded-md px-3 py-1.5 focus:outline-none focus:border-blue-500"
+                      value={profileForm.hub}
+                      onChange={(e) => setProfileForm(f => ({ ...f, hub: e.target.value }))}
+                    />
+                  </div>
+                </>
+              ) : (
+                [
+                  ["Full Name", user?.displayName || "Not specified"],
+                  ["Email", user?.email || "Not specified"],
+                  ["Role", profileForm.role],
+                  ["Hub Location", profileForm.hub],
+                ].map(([l, v]) => (
+                  <div key={l} className="flex items-center justify-between py-2.5 border-t border-gray-100">
+                    <span className="text-xs font-medium text-gray-500 w-28">{l}</span>
+                    <span className="text-sm text-gray-900 flex-1">{v}</span>
+                  </div>
+                ))
+              )}
             </div>
           </div>
 
@@ -576,33 +658,37 @@ function DashboardContent() {
             </div>
             <div className="p-5 flex flex-col">
               {[
-                ["Shipment status changes", "Get notified when a shipment status is updated", true],
-                ["New shipment created", "Alert when a new shipment is added", true],
-                ["Delivery delays", "Notify when estimated delivery is revised", false],
-              ].map(([l, d, on], i) => (
-                <div
-                  key={i}
-                  className={`flex items-start justify-between py-3.5 gap-4 ${
-                    i > 0 ? "border-t border-gray-100" : ""
-                  }`}
-                >
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">{l}</p>
-                    <p className="text-xs text-gray-500 mt-0.5">{d}</p>
-                  </div>
+                { key: "statusChanges", l: "Shipment status changes", d: "Get notified when a shipment status is updated" },
+                { key: "newShipment", l: "New shipment created", d: "Alert when a new shipment is added" },
+                { key: "delays", l: "Delivery delays", d: "Notify when estimated delivery is revised" },
+              ].map(({ key, l, d }, i) => {
+                const on = notifications[key as keyof typeof notifications];
+                return (
                   <div
-                    className={`mt-0.5 relative w-9 h-5 rounded-full shrink-0 cursor-pointer ${
-                      on ? "bg-blue-600" : "bg-gray-300"
+                    key={i}
+                    className={`flex items-start justify-between py-3.5 gap-4 ${
+                      i > 0 ? "border-t border-gray-100" : ""
                     }`}
                   >
-                    <span
-                      className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${
-                        on ? "translate-x-4" : "translate-x-0.5"
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">{l}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">{d}</p>
+                    </div>
+                    <div
+                      onClick={() => setNotifications(prev => ({ ...prev, [key]: !prev[key as keyof typeof notifications] }))}
+                      className={`mt-0.5 relative w-9 h-5 rounded-full shrink-0 cursor-pointer transition-colors ${
+                        on ? "bg-blue-600" : "bg-gray-300"
                       }`}
-                    />
+                    >
+                      <span
+                        className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${
+                          on ? "translate-x-4" : "translate-x-0.5"
+                        }`}
+                      />
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
