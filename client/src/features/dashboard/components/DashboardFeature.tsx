@@ -58,15 +58,7 @@ const STATUS_COLOR: Record<Status, string> = {
   Delayed: "#DC2626",
 };
 
-const WEEKLY = [
-  { day: "Mon", shipments: 8, delivered: 5 },
-  { day: "Tue", shipments: 14, delivered: 10 },
-  { day: "Wed", shipments: 11, delivered: 8 },
-  { day: "Thu", shipments: 18, delivered: 13 },
-  { day: "Fri", shipments: 9, delivered: 7 },
-  { day: "Sat", shipments: 6, delivered: 4 },
-  { day: "Sun", shipments: 4, delivered: 3 },
-];
+// Dynamic weekly data generated below
 
 const TOP_ROUTES = [
   { from: "Delhi", to: "Mumbai", count: 24, pct: 88 },
@@ -183,6 +175,39 @@ function DashboardContent() {
       setSortDir("asc");
     }
   }
+
+  // Generate dynamic weekly data for the last 7 days (ending today)
+  const WEEKLY = React.useMemo(() => {
+    const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const today = new Date();
+    const result = [];
+    
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      d.setHours(0, 0, 0, 0);
+      
+      const nextDay = new Date(d);
+      nextDay.setDate(d.getDate() + 1);
+
+      const created = shipments.filter(s => {
+        const createdDate = new Date(s.createdAt);
+        return createdDate >= d && createdDate < nextDay;
+      }).length;
+
+      const delivered = shipments.filter(s => {
+        const updatedDate = new Date(s.updatedAt);
+        return s.status === "Delivered" && updatedDate >= d && updatedDate < nextDay;
+      }).length;
+
+      result.push({
+        day: days[d.getDay()],
+        shipments: created,
+        delivered: delivered
+      });
+    }
+    return result;
+  }, [shipments]);
 
   // Stats Breakdown
   const counts = {
