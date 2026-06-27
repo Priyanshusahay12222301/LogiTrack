@@ -4,11 +4,22 @@ import { db } from "@/lib/firebase/firebase";
 import { Shipment } from "@/features/shipments/types";
 import { ActivityEntry } from "@/features/activity/types";
 
+function parseFirestoreDate(field: any): Date | null {
+  if (!field) return null;
+  if (field instanceof Timestamp) return field.toDate();
+  if (typeof field.seconds === "number") return new Date(field.seconds * 1000);
+  if (typeof field === "string" || typeof field === "number") {
+    const d = new Date(field);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  return null;
+}
+
 function mapDocToShipment(docId: string, data: any): Shipment {
   let createdAtStr = "TBD";
-  if (data.createdAt) {
-    const date = data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date(data.createdAt.seconds * 1000);
-    createdAtStr = date.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+  const createdDate = parseFirestoreDate(data.createdAt);
+  if (createdDate) {
+    createdAtStr = createdDate.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
   }
 
   return {
@@ -25,6 +36,8 @@ function mapDocToShipment(docId: string, data: any): Shipment {
     estimatedDelivery: data.estimatedDelivery || "",
     status: data.status || "Pending",
     createdAt: createdAtStr,
+    createdAtISO: createdDate ? createdDate.toISOString() : new Date().toISOString(),
+    updatedAt: data.updatedAt ? parseFirestoreDate(data.updatedAt)?.toISOString() : undefined,
     notes: data.notes || "",
   };
 }

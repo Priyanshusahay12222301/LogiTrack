@@ -17,6 +17,7 @@ export interface Shipment {
   estimatedDelivery: string;
   status: Status;
   createdAt: string;
+  createdAtISO: string;
   updatedAt?: string;
   notes: string;
 }

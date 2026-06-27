@@ -191,7 +191,8 @@ function DashboardContent() {
       nextDay.setDate(d.getDate() + 1);
 
       const created = shipments.filter(s => {
-        const createdDate = new Date(s.createdAt);
+        if (!s.createdAtISO) return false;
+        const createdDate = new Date(s.createdAtISO);
         return createdDate >= d && createdDate < nextDay;
       }).length;
 
