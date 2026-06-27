@@ -74,7 +74,7 @@ function DashboardLayoutContent({
     }
   };
 
-  const addShipment = async (s: Omit<Shipment, "id" | "createdAt" | "status">) => {
+  const addShipment = async (s: Omit<Shipment, "id" | "createdAt" | "status" | "createdAtISO">) => {
     try {
       const trackingId = await createShipment(s);
       toast.success(`Shipment ${trackingId} created successfully`);

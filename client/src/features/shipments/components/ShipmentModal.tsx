@@ -292,7 +292,7 @@ const BLANK = {
 interface CreateDrawerProps {
   open: boolean;
   onClose: () => void;
-  onCreate: (s: Omit<Shipment, "id" | "createdAt" | "status">) => Promise<void>;
+  onCreate: (s: Omit<Shipment, "id" | "createdAt" | "status" | "createdAtISO">) => Promise<void>;
 }
 
 export function CreateDrawer({ open, onClose, onCreate }: CreateDrawerProps) {
